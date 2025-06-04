@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WASD Input Blocker Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        /* Custom scrollbar for a more app-like feel if content overflows */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #2d3748; /* Tailwind gray-800 */
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #4a5568; /* Tailwind gray-600 */
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #718096; /* Tailwind gray-500 */
+        }
+        .app-window-shadow {
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.1);
+        }
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            transition: background-color 0.3s ease;
+        }
+        .dot-active {
+            background-color: #48bb78; /* Tailwind green-500 */
+        }
+        .dot-inactive {
+            background-color: #f56565; /* Tailwind red-500 */
+        }
+        .key-indicator {
+            transition: all 0.2s ease-out;
+            transform-origin: center;
+        }
+        .key-pressed {
+            transform: scale(1.1);
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.5); /* Tailwind blue-500 glow */
+        }
+        .key-blocked-animation {
+            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+        }
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0) scale(1.05); }
+            20%, 80% { transform: translate3d(2px, 0, 0) scale(1.05); }
+            30%, 50%, 70% { transform: translate3d(-3px, 0, 0) scale(1.05); }
+            40%, 60% { transform: translate3d(3px, 0, 0) scale(1.05); }
+        }
+    </style>
+</head>
+<body class="bg-gray-800 text-gray-100 flex items-center justify-center min-h-screen p-4 select-none">
+
+    <!-- App Window -->
+    <div id="appWindow" class="bg-gray-700 rounded-lg app-window-shadow w-full max-w-2xl overflow-hidden">
+        <!-- Title Bar -->
+        <div class="bg-gray-900 px-4 py-2 flex justify-between items-center cursor-default">
+            <h1 class="text-lg font-semibold text-blue-400">WASD Input Blocker</h1>
+            <div class="flex space-x-2">
+                <div class="w-3 h-3 bg-yellow-400 rounded-full opacity-75 hover:opacity-100 transition-opacity"></div>
+                <div class="w-3 h-3 bg-green-400 rounded-full opacity-75 hover:opacity-100 transition-opacity"></div>
+                <div class="w-3 h-3 bg-red-400 rounded-full opacity-75 hover:opacity-100 transition-opacity"></div>
+            </div>
+        </div>
+
+        <!-- Content Area -->
+        <div class="p-6 space-y-6">
+            <!-- Instructions -->
+            <p class="text-center text-gray-300 text-sm md:text-base">
+                Hold down the <strong class="text-blue-400">Left Mouse Button</strong> to block WASD key inputs.
+                Try typing in the text area below.
+            </p>
+
+            <!-- Status Indicators -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-gray-600 p-4 rounded-md flex items-center justify-between transition-all duration-300 ease-in-out">
+                    <span class="font-medium">Mouse Status:</span>
+                    <div class="flex items-center space-x-2">
+                        <div id="mouseStatusDot" class="status-dot dot-active"></div>
+                        <span id="mouseStatusText" class="text-sm font-semibold">UP (WASD Active)</span>
+                    </div>
+                </div>
+                <div class="bg-gray-600 p-4 rounded-md transition-all duration-300 ease-in-out">
+                    <span class="font-medium">Last WASD Input:</span>
+                    <span id="lastKeyStatus" class="text-sm ml-2">-</span>
+                </div>
+            </div>
+
+            <!-- WASD Key Visualizers -->
+            <div class="flex justify-center space-x-2 sm:space-x-3 my-4">
+                <div id="key-W" class="key-indicator bg-gray-800 border-2 border-gray-500 rounded-md w-12 h-12 sm:w-16 sm:h-16 flex items-center justify-center text-xl sm:text-2xl font-bold">W</div>
+                <div id="key-A" class="key-indicator bg-gray-800 border-2 border-gray-500 rounded-md w-12 h-12 sm:w-16 sm:h-16 flex items-center justify-center text-xl sm:text-2xl font-bold">A</div>
+                <div id="key-S" class="key-indicator bg-gray-800 border-2 border-gray-500 rounded-md w-12 h-12 sm:w-16 sm:h-16 flex items-center justify-center text-xl sm:text-2xl font-bold">S</div>
+                <div id="key-D" class="key-indicator bg-gray-800 border-2 border-gray-500 rounded-md w-12 h-12 sm:w-16 sm:h-16 flex items-center justify-center text-xl sm:text-2xl font-bold">D</div>
+            </div>
+            
+            <!-- Test Input Area -->
+            <div>
+                <label for="testInput" class="block text-sm font-medium text-gray-300 mb-1">Test Typing Area:</label>
+                <input type="text" id="testInput" class="w-full bg-gray-800 text-gray-100 border border-gray-600 rounded-md p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors" placeholder="Try typing W, A, S, D here...">
+            </div>
+
+            <!-- Log Area -->
+            <div class="mt-4">
+                <h3 class="text-md font-semibold mb-2 text-blue-300">Event Log:</h3>
+                <div id="eventLog" class="bg-gray-800 p-3 rounded-md h-32 overflow-y-auto text-xs border border-gray-600">
+                    <p class="text-gray-400"><i>Log will appear here...</i></p>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        const mouseStatusText = document.getElementById('mouseStatusText');
+        const mouseStatusDot = document.getElementById('mouseStatusDot');
+        const lastKeyStatus = document.getElementById('lastKeyStatus');
+        const testInput = document.getElementById('testInput');
+        const eventLog = document.getElementById('eventLog');
+        const keyIndicators = {
+            'W': document.getElementById('key-W'),
+            'A': document.getElementById('key-A'),
+            'S': document.getElementById('key-S'),
+            'D': document.getElementById('key-D')
+        };
+
+        let isLeftMouseDown = false;
+        let logCounter = 0;
+
+        function addLogEntry(message, type = 'info') {
+            logCounter++;
+            const logEntry = document.createElement('p');
+            const timestamp = new Date().toLocaleTimeString();
+            let typeColor = 'text-gray-400';
+            if (type === 'blocked') typeColor = 'text-red-400';
+            if (type === 'allowed') typeColor = 'text-green-400';
+            if (type === 'mouse') typeColor = 'text-blue-400';
+
+            logEntry.innerHTML = `<span class="font-mono text-gray-500">${logCounter.toString().padStart(3, '0')} [${timestamp}]</span> <span class="${typeColor}">${message}</span>`;
+            
+            // If it's the first log, clear placeholder
+            if (eventLog.firstChild && eventLog.firstChild.tagName === 'P' && eventLog.firstChild.textContent.includes('Log will appear here...')) {
+                eventLog.innerHTML = '';
+            }
+            
+            eventLog.appendChild(logEntry);
+            eventLog.scrollTop = eventLog.scrollHeight; // Auto-scroll to bottom
+        }
+
+        function updateMouseStatusUI() {
+            if (isLeftMouseDown) {
+                mouseStatusText.textContent = 'DOWN (WASD Blocked)';
+                mouseStatusDot.classList.remove('dot-active');
+                mouseStatusDot.classList.add('dot-inactive');
+                mouseStatusText.classList.remove('text-green-400');
+                mouseStatusText.classList.add('text-red-400');
+                addLogEntry('Left Mouse Button: PRESSED', 'mouse');
+            } else {
+                mouseStatusText.textContent = 'UP (WASD Active)';
+                mouseStatusDot.classList.remove('dot-inactive');
+                mouseStatusDot.classList.add('dot-active');
+                mouseStatusText.classList.remove('text-red-400');
+                mouseStatusText.classList.add('text-green-400');
+                addLogEntry('Left Mouse Button: RELEASED', 'mouse');
+            }
+        }
+
+        // Initial UI state for mouse
+        mouseStatusText.textContent = 'UP (WASD Active)';
+        mouseStatusDot.classList.add('dot-active');
+        mouseStatusText.classList.add('text-green-400');
+
+
+        // Listen for mouse down events anywhere on the page
+        document.addEventListener('mousedown', (event) => {
+            // Check if it's the left mouse button (button 0)
+            if (event.button === 0) {
+                isLeftMouseDown = true;
+                updateMouseStatusUI();
+            }
+        });
+
+        // Listen for mouse up events anywhere on the page
+        document.addEventListener('mouseup', (event) => {
+            if (event.button === 0) {
+                isLeftMouseDown = false;
+                updateMouseStatusUI();
+            }
+        });
+        
+        // Prevent context menu on right click to make it feel more like an app
+        document.addEventListener('contextmenu', event => event.preventDefault());
+
+        // Listen for keydown events
+        document.addEventListener('keydown', (event) => {
+            const key = event.key.toUpperCase();
+            const isWASDKey = ['W', 'A', 'S', 'D'].includes(key);
+
+            if (isWASDKey) {
+                const keyIndicator = keyIndicators[key];
+                if (keyIndicator) {
+                    keyIndicator.classList.add('key-pressed');
+                    if (isLeftMouseDown) {
+                        keyIndicator.classList.add('border-red-500', 'key-blocked-animation');
+                        keyIndicator.classList.remove('border-gray-500', 'border-green-500');
+                    } else {
+                        keyIndicator.classList.add('border-green-500');
+                        keyIndicator.classList.remove('border-gray-500', 'border-red-500');
+                    }
+                }
+
+                if (isLeftMouseDown) {
+                    // If left mouse button is down and it's a WASD key, prevent default action
+                    event.preventDefault();
+                    lastKeyStatus.textContent = `Key '${key}' BLOCKED`;
+                    lastKeyStatus.className = 'text-sm ml-2 font-semibold text-red-400 transition-colors duration-200';
+                    addLogEntry(`Key '${key}' press BLOCKED.`, 'blocked');
+                } else {
+                    // Otherwise, allow the key press
+                    lastKeyStatus.textContent = `Key '${key}' Processed`;
+                    lastKeyStatus.className = 'text-sm ml-2 font-semibold text-green-400 transition-colors duration-200';
+                    addLogEntry(`Key '${key}' press ALLOWED.`, 'allowed');
+                }
+            }
+        });
+
+        document.addEventListener('keyup', (event) => {
+            const key = event.key.toUpperCase();
+            const isWASDKey = ['W', 'A', 'S', 'D'].includes(key);
+
+            if (isWASDKey) {
+                const keyIndicator = keyIndicators[key];
+                if (keyIndicator) {
+                    keyIndicator.classList.remove('key-pressed', 'border-red-500', 'border-green-500', 'key-blocked-animation');
+                    keyIndicator.classList.add('border-gray-500');
+                     // Remove animation class after it finishes
+                    setTimeout(() => keyIndicator.classList.remove('key-blocked-animation'), 500);
+                }
+            }
+        });
+
+        // Focus the input initially to allow immediate typing test
+        // testInput.focus(); // Commented out as it might be annoying on load for some users. Can be re-enabled.
+        addLogEntry('Application initialized. Ready for input.', 'info');
+    </script>
+
+</body>
+</html>
